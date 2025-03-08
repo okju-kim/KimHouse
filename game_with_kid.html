@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>장애물 넘기 게임</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #e0f7fa;
+    }
+    canvas {
+      display: block;
+      background: #fff;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const gravity = 0.6;
+    const jumpForce = -12;
+    let gameSpeed = 5;
+    let score = 0;
+
+    // 아이 이미지 로드
+    const kidImg = new Image();
+    kidImg.src = "./head.png";  // 로컬 이미지 경로 (로컬 서버에서 접근 가능해야 함)
+
+    const bike = {
+      x: 50,
+      y: canvas.height - 80,
+      width: 50,
+      height: 50,
+      vy: 0,
+      isJumping: false,
+      draw: function() {
+        // 자전거 몸통: 파란색 사각형
+        ctx.fillStyle = 'blue';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        
+        // 바퀴: 검은색 원
+        ctx.beginPath();
+        ctx.arc(this.x + 10, this.y + this.height, 10, 0, Math.PI * 2);
+        ctx.arc(this.x + this.width - 10, this.y + this.height, 10, 0, Math.PI * 2);
+        ctx.fillStyle = 'black';
+        ctx.fill();
+
+        // 아이 이미지 그리기 (자전거 위)
+        ctx.drawImage(kidImg, this.x + 5, this.y - 30, 40, 40);
+      },
+      update: function() {
+        this.vy += gravity;
+        this.y += this.vy;
+        if (this.y > canvas.height - 80) {
+          this.y = canvas.height - 80;
+          this.vy = 0;
+          this.isJumping = false;
+        }
+      },
+      jump: function() {
+        if (!this.isJumping) {
+          this.vy = jumpForce;
+          this.isJumping = true;
+        }
+      }
+    };
+
+    class Obstacle {
+      constructor() {
+        this.width = 30;
+        this.height = 50;
+        this.x = canvas.width;
+        this.y = canvas.height - 80;
+      }
+      draw() {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+      update() {
+        this.x -= gameSpeed;
+      }
+    }
+
+    let obstacles = [];
+    let obstacleTimer = 0;
+    const obstacleInterval = 1500;
+
+    function checkCollision(rect1, rect2) {
+      return (
+        rect1.x < rect2.x + rect2.width &&
+        rect1.x + rect1.width > rect2.x &&
+        rect1.y < rect2.y + rect2.height &&
+        rect1.y + rect1.height > rect2.y
+      );
+    }
+
+    let lastTime = 0;
+    function gameLoop(timestamp) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!lastTime) lastTime = timestamp;
+      const deltaTime = timestamp - lastTime;
+      obstacleTimer += deltaTime;
+      if (obstacleTimer > obstacleInterval) {
+        obstacles.push(new Obstacle());
+        obstacleTimer = 0;
+      }
+      lastTime = timestamp;
+
+      bike.update();
+      bike.draw();
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].update();
+        obstacles[i].draw();
+        if (checkCollision(bike, obstacles[i])) {
+          alert("게임 오버! 점수: " + score);
+          document.location.reload();
+          return;
+        }
+        if (obstacles[i].x + obstacles[i].width < 0) {
+          obstacles.splice(i, 1);
+          score++;
+        }
+      }
+
+      ctx.fillStyle = 'black';
+      ctx.font = '20px Arial';
+      ctx.fillText("점수: " + score, 10, 30);
+
+      requestAnimationFrame(gameLoop);
+    }
+    requestAnimationFrame(gameLoop);
+
+    window.addEventListener('keydown', function(e) {
+      if (e.code === "Space" || e.code === "ArrowUp") {
+        bike.jump();
+      }
+    });
+
+    canvas.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      bike.jump();
+    });
+  </script>
+</body>
+</html>
